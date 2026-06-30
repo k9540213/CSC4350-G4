@@ -1,5 +1,3 @@
-
-
 ## The Importance of Components
 Components are the foundational building blocks of any React application, allowing developers to break down complex user interfaces into manageable, independent pieces. 
 By encapsulating both visual structure and logic, components promote code reusability and significantly reduce redundancy across a project.
