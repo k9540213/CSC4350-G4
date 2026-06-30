@@ -1,4 +1,4 @@
-content = """# React Fundamentals: Components and Event Handling
+
 
 ## The Importance of Components
 Components are the foundational building blocks of any React application, allowing developers to break down complex user interfaces into manageable, independent pieces. 
