@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Mono } from "@/components/mono";
+import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Sign in — Pathway" }] }),
@@ -9,16 +10,30 @@ export const Route = createFileRoute("/auth")({
 
 function Auth() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [emailError, setEmailError] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.includes("@")) { setEmailError("Enter a valid email"); return; }
-    if (mode === "signup") navigate({ to: "/onboarding" });
-    else navigate({ to: "/app/dashboard" });
+    setError("");
+    setLoading(true);
+    try {
+      if (mode === "signup") {
+        await api.auth.register({ email, password, name });
+        navigate({ to: "/onboarding" });
+      } else {
+        await api.auth.login({ email, password });
+        navigate({ to: "/app/dashboard" });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -38,9 +53,12 @@ function Auth() {
         </p>
 
         <div className="mt-8 rounded-lg border border-border bg-surface p-6">
-          <button className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-background px-3 py-2.5 text-sm font-medium hover:border-border-strong">
+          <a
+            href={api.auth.googleUrl()}
+            className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-background px-3 py-2.5 text-sm font-medium hover:border-border-strong"
+          >
             <GoogleIcon /> Continue with Google
-          </button>
+          </a>
 
           <div className="my-5 flex items-center gap-3">
             <div className="h-px flex-1 bg-border" />
@@ -49,12 +67,25 @@ function Auth() {
           </div>
 
           <form onSubmit={onSubmit} className="space-y-3">
-            <Field label="Email" error={emailError}>
+            {mode === "signup" && (
+              <Field label="Name">
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your name"
+                  required
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                />
+              </Field>
+            )}
+            <Field label="Email">
               <input
                 type="email"
                 value={email}
-                onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
+                onChange={(e) => { setEmail(e.target.value); setError(""); }}
                 placeholder="you@gmail.com"
+                required
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
               />
             </Field>
@@ -62,19 +93,33 @@ function Auth() {
               <input
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); setError(""); }}
                 placeholder="••••••••"
+                required
+                minLength={8}
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
               />
             </Field>
-            <button type="submit" className="mt-2 w-full rounded-md bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-              {mode === "signin" ? "Sign in" : "Create account"}
+
+            {error && (
+              <p className="text-xs text-destructive">{error}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-2 w-full rounded-md bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {loading ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
             </button>
           </form>
 
           <p className="mt-6 text-center text-sm text-text-secondary">
             {mode === "signin" ? "New to Pathway?" : "Already have an account?"}{" "}
-            <button onClick={() => setMode(mode === "signin" ? "signup" : "signin")} className="text-primary-muted hover:underline">
+            <button
+              onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(""); }}
+              className="text-primary-muted hover:underline"
+            >
               {mode === "signin" ? "Create an account" : "Sign in"}
             </button>
           </p>
@@ -84,13 +129,10 @@ function Auth() {
   );
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <div className="mb-1.5 flex items-center justify-between">
-        <Mono dim>{label}</Mono>
-        {error && <span className="text-[11px] text-destructive">{error}</span>}
-      </div>
+      <div className="mb-1.5"><Mono dim>{label}</Mono></div>
       {children}
     </label>
   );
