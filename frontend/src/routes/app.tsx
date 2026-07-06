@@ -1,10 +1,17 @@
-import { createFileRoute, Link, Outlet, useRouter, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, redirect, useRouter, useRouterState } from "@tanstack/react-router";
 import { LayoutGrid, BarChart3, FileText, Settings as SettingsIcon, LogOut, User } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef, useEffect } from "react";
 import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/app")({
+  beforeLoad: async () => {
+    try {
+      await api.auth.me();
+    } catch {
+      throw redirect({ to: "/auth" });
+    }
+  },
   component: AppLayout,
 });
 

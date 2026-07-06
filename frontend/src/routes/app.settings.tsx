@@ -30,6 +30,11 @@ function Settings() {
 
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const disconnectGmail = useMutation({
+    mutationFn: api.gmail.disconnect,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["me"] }),
+  });
+
   // Sync name field once user loads
   useState(() => { if (user) setName(user.name); });
 
@@ -150,9 +155,20 @@ function Settings() {
               </div>
             </div>
             {user?.gmailConnected ? (
-              <button className="rounded-md px-3 py-1.5 text-xs text-text-secondary hover:text-foreground">Disconnect</button>
+              <button
+                onClick={() => disconnectGmail.mutate()}
+                disabled={disconnectGmail.isPending}
+                className="rounded-md px-3 py-1.5 text-xs text-text-secondary hover:text-foreground disabled:opacity-50"
+              >
+                {disconnectGmail.isPending ? "Disconnecting…" : "Disconnect"}
+              </button>
             ) : (
-              <button className="rounded-md border border-border px-3 py-1.5 text-xs hover:border-border-strong">Connect Gmail</button>
+              <a
+                href={api.gmail.connectUrl()}
+                className="rounded-md border border-border px-3 py-1.5 text-xs hover:border-border-strong"
+              >
+                Connect Gmail
+              </a>
             )}
           </div>
         </Section>
