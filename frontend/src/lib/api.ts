@@ -37,6 +37,12 @@ export const api = {
     googleUrl: () => `${BASE}/api/auth/google`,
   },
 
+  gmail: {
+    connectUrl: () => `${BASE}/api/gmail/connect`,
+    disconnect: () =>
+      request<{ ok: boolean }>("/api/gmail/disconnect", { method: "DELETE" }),
+  },
+
   users: {
     updateMe: (body: { name?: string; ghostedThresholdDays?: number }) =>
       request<User>("/api/users/me", { method: "PATCH", body: JSON.stringify(body) }),

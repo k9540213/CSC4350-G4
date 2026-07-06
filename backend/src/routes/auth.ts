@@ -8,11 +8,13 @@ import { requireAuth, AuthRequest } from "../middleware/requireAuth";
 
 export const authRouter = Router();
 
-const client = new OAuth2Client(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
-);
+function makeClient() {
+  return new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI
+  );
+}
 
 function setAuthCookie(res: Response, userId: string) {
   res.cookie(COOKIE_NAME, signToken(userId), {
@@ -108,7 +110,7 @@ authRouter.get("/me", requireAuth, async (req: Request, res: Response) => {
 });
 
 authRouter.get("/google", (_req: Request, res: Response) => {
-  const url = client.generateAuthUrl({
+  const url = makeClient().generateAuthUrl({
     access_type: "offline",
     scope: ["openid", "email", "profile"],
     prompt: "consent",
@@ -117,42 +119,47 @@ authRouter.get("/google", (_req: Request, res: Response) => {
 });
 
 authRouter.get("/google/callback", async (req: Request, res: Response) => {
+  const CLIENT_URL = process.env.CLIENT_URL?.split(",")[0] ?? "http://localhost:5173";
   const code = req.query.code as string;
   if (!code) {
-    res.status(400).json({ error: "Missing code" });
+    res.redirect(`${CLIENT_URL}/auth?error=google_failed`);
     return;
   }
 
-  const { tokens } = await client.getToken(code);
-  client.setCredentials(tokens);
+  try {
+    const client = makeClient();
+    const { tokens } = await client.getToken(code);
 
-  const ticket = await client.verifyIdToken({
-    idToken: tokens.id_token!,
-    audience: process.env.GOOGLE_CLIENT_ID,
-  });
-  const payload = ticket.getPayload()!;
+    const ticket = await client.verifyIdToken({
+      idToken: tokens.id_token!,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload()!;
 
-  const googleId = payload.sub;
-  const email = payload.email!;
-  const name = payload.name ?? email;
+    const googleId = payload.sub;
+    const email = payload.email!;
+    const name = payload.name ?? email;
 
-  let user = await prisma.user.findFirst({
-    where: { OR: [{ googleId }, { email }] },
-  });
+    let user = await prisma.user.findFirst({
+      where: { OR: [{ googleId }, { email }] },
+    });
 
-  if (user) {
-    if (!user.googleId) {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: { googleId },
+    if (user) {
+      if (!user.googleId) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { googleId },
+        });
+      }
+    } else {
+      user = await prisma.user.create({
+        data: { email, name, googleId },
       });
     }
-  } else {
-    user = await prisma.user.create({
-      data: { email, name, googleId },
-    });
-  }
 
-  setAuthCookie(res, user.id);
-  res.redirect(`${process.env.CLIENT_URL ?? "http://localhost:5173"}/app/dashboard`);
+    setAuthCookie(res, user.id);
+    res.redirect(`${CLIENT_URL}/app/dashboard`);
+  } catch {
+    res.redirect(`${CLIENT_URL}/auth?error=google_failed`);
+  }
 });

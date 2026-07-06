@@ -1,18 +1,33 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Mail, Check } from "lucide-react";
+import { Mail, Check, AlertCircle } from "lucide-react";
 import { Mono } from "@/components/mono";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { z } from "zod";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({ meta: [{ title: "Set up — Pathway" }] }),
+  validateSearch: z.object({
+    gmailConnected: z.boolean().optional(),
+    error: z.string().optional(),
+  }),
   component: Onboarding,
 });
 
 function Onboarding() {
-  const [step, setStep] = useState<1 | 2>(1);
-  const [connected, setConnected] = useState(false);
+  const { gmailConnected: justConnected, error: oauthError } = Route.useSearch();
+  const [step, setStep] = useState<1 | 2>(justConnected ? 2 : 1);
   const [depth, setDepth] = useState("100");
   const navigate = useNavigate();
+
+  const { data: user } = useQuery({
+    queryKey: ["me"],
+    queryFn: api.auth.me,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const connected = justConnected || user?.gmailConnected === true;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -37,6 +52,15 @@ function Onboarding() {
               Pathway reads only application-related emails — never personal threads. You can disconnect any time.
             </p>
 
+            {oauthError && (
+              <div className="mt-4 flex items-center gap-2 rounded-md border border-[rgba(247,108,108,0.3)] bg-[rgba(247,108,108,0.08)] px-3 py-2.5 text-sm text-[#F76C6C]">
+                <AlertCircle className="size-4 shrink-0" />
+                {oauthError === "no_refresh_token"
+                  ? "Google didn't return a refresh token. Try connecting again."
+                  : "Something went wrong connecting Gmail. Please try again."}
+              </div>
+            )}
+
             <div className="mt-8 rounded-lg border border-border bg-surface p-6">
               <div className="flex items-start gap-4">
                 <div className="flex size-10 items-center justify-center rounded-md border border-border bg-background">
@@ -53,18 +77,21 @@ function Onboarding() {
                     <Check className="size-4" /> Connected
                   </div>
                 ) : (
-                  <button
-                    onClick={() => setConnected(true)}
+                  <a
+                    href={api.gmail.connectUrl()}
                     className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                   >
                     Connect
-                  </button>
+                  </a>
                 )}
               </div>
             </div>
 
             <div className="mt-6 flex items-center justify-between">
-              <button onClick={() => navigate({ to: "/app/dashboard" })} className="text-sm text-text-secondary hover:text-foreground">
+              <button
+                onClick={() => navigate({ to: "/app/dashboard" })}
+                className="text-sm text-text-secondary hover:text-foreground"
+              >
                 Skip for now
               </button>
               <button
@@ -91,8 +118,18 @@ function Onboarding() {
                 { v: "100", label: "Last 100 emails", hint: "Recommended for most people." },
                 { v: "200", label: "Last 200 emails", hint: "Most thorough. May take ~2 minutes." },
               ].map((o) => (
-                <label key={o.v} className={`flex cursor-pointer items-start gap-3 rounded-md border bg-surface p-4 ${depth === o.v ? "border-primary" : "border-border hover:border-border-strong"}`}>
-                  <input type="radio" name="d" value={o.v} checked={depth === o.v} onChange={() => setDepth(o.v)} className="mt-1 accent-[#8366F0]" />
+                <label
+                  key={o.v}
+                  className={`flex cursor-pointer items-start gap-3 rounded-md border bg-surface p-4 ${depth === o.v ? "border-primary" : "border-border hover:border-border-strong"}`}
+                >
+                  <input
+                    type="radio"
+                    name="d"
+                    value={o.v}
+                    checked={depth === o.v}
+                    onChange={() => setDepth(o.v)}
+                    className="mt-1 accent-[#8366F0]"
+                  />
                   <div>
                     <div className="text-sm font-medium">{o.label}</div>
                     <div className="mt-0.5 text-sm text-text-secondary">{o.hint}</div>
@@ -102,8 +139,16 @@ function Onboarding() {
             </div>
 
             <div className="mt-6 flex items-center justify-between">
-              <button onClick={() => setStep(1)} className="text-sm text-text-secondary hover:text-foreground">Back</button>
-              <button onClick={() => navigate({ to: "/app/dashboard" })} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+              <button
+                onClick={() => setStep(1)}
+                className="text-sm text-text-secondary hover:text-foreground"
+              >
+                Back
+              </button>
+              <button
+                onClick={() => navigate({ to: "/app/dashboard" })}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+              >
                 Start scanning
               </button>
             </div>
