@@ -23,7 +23,7 @@ function Landing() {
         </Link>
         <nav className="flex items-center gap-2 text-sm">
           <Link to="/auth" className="px-3 py-1.5 text-text-secondary hover:text-foreground">Sign in</Link>
-          <Link to="/auth" className="rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground hover:bg-primary/90">
+          <Link to="/auth" search={{ mode: "signup" }} className="rounded-md bg-primary px-3 py-1.5 font-medium text-primary-foreground hover:bg-primary/90">
             Get started
           </Link>
         </nav>
@@ -44,7 +44,7 @@ function Landing() {
             thank-you, OA invite, and interview email so you never lose track of where you stand.
           </p>
           <div className="mt-8 flex items-center gap-3">
-            <Link to="/auth" className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+            <Link to="/auth" search={{ mode: "signup" }} className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
               Get started <ArrowRight className="size-4" />
             </Link>
             <Link to="/auth" className="inline-flex items-center rounded-md border border-border px-4 py-2.5 text-sm font-medium hover:border-border-strong">
