@@ -49,7 +49,7 @@ function Settings() {
   });
 
   const changePassword = useMutation({
-    mutationFn: (data: { currentPassword: string; newPassword: string }) =>
+    mutationFn: (data: { currentPassword?: string; newPassword: string }) =>
       api.users.changePassword(data),
     onSuccess: () => {
       setCurrentPassword("");
@@ -106,16 +106,23 @@ function Settings() {
           </Row>
         </Section>
 
-        <Section title="Change password">
-          <Row label="Current password">
-            <input
-              type="password"
-              className="input"
-              value={currentPassword}
-              onChange={(e) => { setCurrentPassword(e.target.value); setPasswordError(""); }}
-              placeholder="••••••••"
-            />
-          </Row>
+        <Section title={user?.hasPassword ? "Change password" : "Set a password"}>
+          {!user?.hasPassword && (
+            <p className="text-xs text-text-secondary">
+              Your account currently signs in with Google only. Set a password below to also be able to sign in with email and password.
+            </p>
+          )}
+          {user?.hasPassword && (
+            <Row label="Current password">
+              <input
+                type="password"
+                className="input"
+                value={currentPassword}
+                onChange={(e) => { setCurrentPassword(e.target.value); setPasswordError(""); }}
+                placeholder="••••••••"
+              />
+            </Row>
+          )}
           <Row label="New password">
             <input
               type="password"
@@ -130,11 +137,21 @@ function Settings() {
           )}
           <Row label="">
             <button
-              onClick={() => changePassword.mutate({ currentPassword, newPassword })}
-              disabled={changePassword.isPending || !currentPassword || !newPassword}
+              onClick={() =>
+                changePassword.mutate(
+                  user?.hasPassword ? { currentPassword, newPassword } : { newPassword }
+                )
+              }
+              disabled={changePassword.isPending || (user?.hasPassword && !currentPassword) || !newPassword}
               className="rounded-md border border-border px-3 py-1.5 text-xs hover:border-border-strong disabled:opacity-40"
             >
-              {changePassword.isPending ? "Updating…" : passwordSaved ? "Password updated!" : "Update password"}
+              {changePassword.isPending
+                ? "Saving…"
+                : passwordSaved
+                ? "Password saved!"
+                : user?.hasPassword
+                ? "Update password"
+                : "Set password"}
             </button>
           </Row>
         </Section>

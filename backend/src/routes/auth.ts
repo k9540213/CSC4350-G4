@@ -25,11 +25,12 @@ function setAuthCookie(res: Response, userId: string) {
   });
 }
 
-function safeUser(user: { id: string; email: string; name: string; gmailConnected: boolean; ghostedThresholdDays: number; createdAt: Date }) {
+function safeUser(user: { id: string; email: string; name: string; passwordHash: string | null; gmailConnected: boolean; ghostedThresholdDays: number; createdAt: Date }) {
   return {
     id: user.id,
     email: user.email,
     name: user.name,
+    hasPassword: Boolean(user.passwordHash),
     gmailConnected: user.gmailConnected,
     ghostedThresholdDays: user.ghostedThresholdDays,
     createdAt: user.createdAt,
@@ -79,8 +80,13 @@ authRouter.post("/login", async (req: Request, res: Response) => {
   const { email, password } = parsed.data;
 
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !user.passwordHash) {
+  if (!user) {
     res.status(401).json({ error: "Invalid email or password" });
+    return;
+  }
+
+  if (!user.passwordHash) {
+    res.status(401).json({ error: "This account uses Google sign-in. Continue with Google, or set a password in Settings once you're signed in." });
     return;
   }
 
@@ -159,7 +165,8 @@ authRouter.get("/google/callback", async (req: Request, res: Response) => {
 
     setAuthCookie(res, user.id);
     res.redirect(`${CLIENT_URL}/app/dashboard`);
-  } catch {
+  } catch (err) {
+    console.error("Google OAuth callback failed:", err);
     res.redirect(`${CLIENT_URL}/auth?error=google_failed`);
   }
 });

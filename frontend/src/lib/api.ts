@@ -1,11 +1,17 @@
 import type { Application } from "@/lib/mock-data";
+import { getIncomingCookieHeader } from "@/lib/ssr-cookie";
 const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+
+  const cookie = getIncomingCookieHeader();
+  if (cookie) headers.cookie = cookie;
+
   const res = await fetch(`${BASE}${path}`, {
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers: { ...headers, ...(options?.headers as Record<string, string> | undefined) },
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? "Request failed");
@@ -16,6 +22,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  hasPassword: boolean;
   gmailConnected: boolean;
   ghostedThresholdDays: number;
   createdAt: string;
@@ -48,7 +55,7 @@ export const api = {
     updateMe: (body: { name?: string; ghostedThresholdDays?: number }) =>
       request<User>("/api/users/me", { method: "PATCH", body: JSON.stringify(body) }),
 
-    changePassword: (body: { currentPassword: string; newPassword: string }) =>
+    changePassword: (body: { currentPassword?: string; newPassword: string }) =>
       request<{ ok: boolean }>("/api/users/me/password", { method: "PATCH", body: JSON.stringify(body) }),
 
     deleteMe: () =>
