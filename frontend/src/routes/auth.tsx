@@ -1,7 +1,24 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { z } from "zod";
 import { Mono } from "@/components/mono";
 import { api } from "@/lib/api";
+
+export const createAccountSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Name is required")
+    .regex(/^[A-Za-z]+$/, "Name can only contain letters and no numbers or special characters"),
+  email: z.string().trim().email("Please enter a valid email address"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(25, "Password must be at most 25 characters")
+    .regex(/[A-Z]/, "Password must include at least one uppercase letter")
+    .regex(/\d/, "Password must include at least one number")
+    .regex(/[^A-Za-z0-9]/, "Password must include at least one special character"),
+});
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Sign in — Pathway" }] }),
@@ -9,6 +26,7 @@ export const Route = createFileRoute("/auth")({
 });
 
 function Auth() {
+  const location = useLocation();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -17,10 +35,25 @@ function Auth() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    setMode(params.get("mode") === "signup" ? "signup" : "signin");
+  }, [location.search]);
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
+
+    if (mode === "signup") {
+      const parsed = createAccountSchema.safeParse({ name, email, password });
+      if (!parsed.success) {
+        setError(parsed.error.issues[0].message);
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       if (mode === "signup") {
         await api.auth.register({ email, password, name });
@@ -117,7 +150,12 @@ function Auth() {
           <p className="mt-6 text-center text-sm text-text-secondary">
             {mode === "signin" ? "New to Pathway?" : "Already have an account?"}{" "}
             <button
-              onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(""); }}
+              onClick={() => {
+                const nextMode = mode === "signin" ? "signup" : "signin";
+                setMode(nextMode);
+                setError("");
+                navigate({ to: "/auth", search: nextMode === "signup" ? { mode: "signup" } : {} });
+              }}
               className="text-primary-muted hover:underline"
             >
               {mode === "signin" ? "Create an account" : "Sign in"}
