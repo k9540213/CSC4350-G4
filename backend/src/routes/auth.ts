@@ -36,14 +36,14 @@ function safeUser(user: { id: string; email: string; name: string; gmailConnecte
   };
 }
 
-const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  name: z.string().min(1),
+export const createAccountSchema = z.object({
+  email: z.string().trim().email("Please enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  name: z.string().trim().min(1, "Name is required"),
 });
 
 authRouter.post("/register", async (req: Request, res: Response) => {
-  const parsed = registerSchema.safeParse(req.body);
+  const parsed = createAccountSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0].message });
     return;
