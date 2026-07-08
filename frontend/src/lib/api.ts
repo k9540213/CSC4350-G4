@@ -1,3 +1,4 @@
+import type { Application } from "@/lib/mock-data";
 const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -52,5 +53,38 @@ export const api = {
 
     deleteMe: () =>
       request<{ ok: boolean }>("/api/users/me", { method: "DELETE" }),
+  },
+  
+  applications: {
+    list: (params?: { search?: string; stage?: string }) => {
+      const qs = new URLSearchParams();
+      if (params?.search) qs.set("search", params.search);
+      if (params?.stage && params.stage !== "all") qs.set("stage", params.stage);
+      return request<Application[]>(`/api/applications?${qs}`);
+    },
+
+    create: (body: {
+      company: string;
+      position: string;
+      location?: string;
+      stage?: string;
+      salary?: string;
+      notes?: string;
+    }) =>
+      request<Application>("/api/applications", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+
+    update: (id: string, body: Partial<Application>) =>
+      request<Application>(`/api/applications/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+
+    remove: (id: string) =>
+      request<{ ok: boolean }>(`/api/applications/${id}`, {
+        method: "DELETE",
+      }),
   },
 };

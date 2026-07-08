@@ -1,9 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Search, Plus, LayoutGrid, Rows3, X } from "lucide-react";
-import { APPLICATIONS, STAGES, daysSince, type Application, type Stage } from "@/lib/mock-data";
+
+// ← changed: no longer importing APPLICATIONS directly
+import { STAGES, daysSince, type Application, type Stage } from "@/lib/mock-data";
 import { StagePill } from "@/components/stage-pill";
 import { Mono } from "@/components/mono";
+import { useApplications } from "@/hooks/use-applications"; // ← new
+import { api } from "@/lib/api";                            // ← new
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";                           // ← new
 
 export const Route = createFileRoute("/app/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Pathway" }] }),
@@ -13,14 +23,15 @@ export const Route = createFileRoute("/app/dashboard")({
 function Dashboard() {
   const [view, setView] = useState<"kanban" | "table">("kanban");
   const [query, setQuery] = useState("");
+  const [stageFilter, setStageFilter] = useState("all"); // ← new
   const [selected, setSelected] = useState<Application | null>(null);
+  const [isAdding, setIsAdding] = useState(false);       // ← new
 
-  const filtered = useMemo(
-    () => APPLICATIONS.filter((a) =>
-      (a.company + a.position).toLowerCase().includes(query.toLowerCase())
-    ),
-    [query],
-  );
+  // ← changed: hook replaces APPLICATIONS + useMemo
+  const { applications, loading, refetch } = useApplications({
+    search: query,
+    stage: stageFilter,
+  });
 
   return (
     <div className="flex h-screen flex-col">
@@ -34,6 +45,19 @@ function Dashboard() {
             className="w-full rounded-md border border-border bg-surface py-1.5 pl-8 pr-3 text-sm outline-none focus:border-border-strong"
           />
         </div>
+
+        {/* ← new: stage filter */}
+        <select
+          value={stageFilter}
+          onChange={(e) => setStageFilter(e.target.value)}
+          className="rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-border-strong"
+        >
+          <option value="all">All stages</option>
+          {STAGES.map((s) => (
+            <option key={s.id} value={s.id}>{s.label}</option>
+          ))}
+        </select>
+
         <div className="flex-1" />
         <div className="flex items-center rounded-md border border-border bg-surface p-0.5">
           <button
@@ -49,23 +73,146 @@ function Dashboard() {
             <Rows3 className="size-3.5" /> Table
           </button>
         </div>
-        <button className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">
+
+        {/* ← changed: button now opens the form */}
+        <button
+          onClick={() => setIsAdding(true)}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+        >
           <Plus className="size-3.5" /> Add application
         </button>
       </header>
 
       <div className="flex-1 overflow-auto">
-        {view === "kanban" ? (
-          <Kanban apps={filtered} onSelect={setSelected} />
+        {loading ? (
+          <div className="flex h-full items-center justify-center text-sm text-text-tertiary">
+            Loading…
+          </div>
+        ) : view === "kanban" ? (
+          <Kanban apps={applications} onSelect={setSelected} />
         ) : (
-          <Table apps={filtered} onSelect={setSelected} />
+          <Table apps={applications} onSelect={setSelected} />
         )}
       </div>
 
       {selected && <Drawer app={selected} onClose={() => setSelected(null)} />}
+
+      {/* ← new: add application dialog */}
+      <AddApplicationDialog
+        open={isAdding}
+        onClose={() => setIsAdding(false)}
+        onAdded={refetch}
+      />
     </div>
   );
 }
+
+// ← new component
+function AddApplicationDialog({
+  open,
+  onClose,
+  onAdded,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onAdded: () => void;
+}) {
+  const [form, setForm] = useState({
+    company: "",
+    position: "",
+    location: "",
+    stage: "applied" as Stage,
+    salary: "",
+    notes: "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  function update(field: string, value: string) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.applications.create(form);
+      onAdded();
+      onClose();
+      setForm({ company: "", position: "", location: "", stage: "applied", salary: "", notes: "" });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add Application</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {[
+            { label: "Company", field: "company", required: true },
+            { label: "Position", field: "position", required: true },
+            { label: "Location", field: "location" },
+            { label: "Salary", field: "salary", placeholder: "e.g. $120k – $150k" },
+          ].map(({ label, field, required, placeholder }) => (
+            <div key={field}>
+              <label className="text-xs text-text-secondary">{label}{required && " *"}</label>
+              <input
+                required={required}
+                value={form[field as keyof typeof form]}
+                onChange={(e) => update(field, e.target.value)}
+                placeholder={placeholder}
+                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-border-strong"
+              />
+            </div>
+          ))}
+          <div>
+            <label className="text-xs text-text-secondary">Stage</label>
+            <select
+              value={form.stage}
+              onChange={(e) => update("stage", e.target.value)}
+              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-border-strong"
+            >
+              {STAGES.map((s) => (
+                <option key={s.id} value={s.id}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-text-secondary">Notes</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) => update("notes", e.target.value)}
+              rows={3}
+              className="mt-1 w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-border-strong"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-surface"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {saving ? "Saving…" : "Add application"}
+            </button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function Kanban({ apps, onSelect }: { apps: Application[]; onSelect: (a: Application) => void }) {
   return (
@@ -177,7 +324,7 @@ function Drawer({ app, onClose }: { app: Application; onClose: () => void }) {
           <div>
             <Mono dim>Timeline</Mono>
             <div className="mt-3 space-y-3 border-l border-border pl-4">
-              {[...app.timeline].reverse().map((e) => (
+              {[...(app.timeline ?? [])].reverse().map((e) => (
                 <div key={e.id} className="relative">
                   <span className="absolute -left-[21px] top-1.5 size-2 rounded-full border border-border bg-background" />
                   <div className="text-sm">{e.label}</div>
