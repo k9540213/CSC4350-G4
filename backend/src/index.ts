@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 // Prevent google-auth-library from routing through any system proxy
 delete process.env.HTTPS_PROXY;
 delete process.env.https_proxy;

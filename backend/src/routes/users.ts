@@ -14,7 +14,7 @@ const updateMeSchema = z.object({
 });
 
 const changePasswordSchema = z.object({
-  currentPassword: z.string(),
+  currentPassword: z.string().optional(),
   newPassword: z.string().min(8),
 });
 
@@ -35,6 +35,7 @@ usersRouter.patch("/me", async (req: Request, res: Response) => {
     id: user.id,
     email: user.email,
     name: user.name,
+    hasPassword: Boolean(user.passwordHash),
     gmailConnected: user.gmailConnected,
     ghostedThresholdDays: user.ghostedThresholdDays,
     createdAt: user.createdAt,
@@ -51,15 +52,21 @@ usersRouter.patch("/me/password", async (req: Request, res: Response) => {
   const { currentPassword, newPassword } = parsed.data;
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || !user.passwordHash) {
-    res.status(400).json({ error: "No password set on this account" });
+  if (!user) {
+    res.status(404).json({ error: "User not found" });
     return;
   }
 
-  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
-  if (!valid) {
-    res.status(401).json({ error: "Current password is incorrect" });
-    return;
+  if (user.passwordHash) {
+    if (!currentPassword) {
+      res.status(400).json({ error: "Current password is required" });
+      return;
+    }
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: "Current password is incorrect" });
+      return;
+    }
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 12);

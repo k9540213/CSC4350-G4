@@ -38,6 +38,9 @@ function Auth() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     setMode(params.get("mode") === "signup" ? "signup" : "signin");
+    if (params.get("error") === "google_failed") {
+      setError("Something went wrong signing in with Google. Please try again.");
+    }
   }, [location.search]);
 
   const onSubmit = async (e: React.FormEvent) => {
