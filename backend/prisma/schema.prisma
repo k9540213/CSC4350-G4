@@ -16,6 +16,14 @@ model User {
   gmailConnected       Boolean         @default(false)
   gmailRefreshToken    String?
   gmailLastScannedAt   DateTime?
+  scanStatus           ScanStatus      @default(idle)
+  scanDepth            Int?
+  scanProcessed        Int?            @default(0)
+  scanTotal            Int?            @default(0)
+  scanCreated          Int?            @default(0)
+  scanUpdated          Int?            @default(0)
+  scanError            String?
+  scanStartedAt        DateTime?
   ghostedThresholdDays Int             @default(21)
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
@@ -96,4 +104,11 @@ enum EventType {
   rejected
   note
   email
+}
+
+enum ScanStatus {
+  idle
+  running
+  completed
+  failed
 }

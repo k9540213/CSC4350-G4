@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Mail, Check, AlertCircle } from "lucide-react";
 import { Mono } from "@/components/mono";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +19,8 @@ function Onboarding() {
   const { gmailConnected: justConnected, error: oauthError } = Route.useSearch();
   const [step, setStep] = useState<1 | 2>(justConnected ? 2 : 1);
   const [depth, setDepth] = useState("100");
+  const [scanning, setScanning] = useState(false);
+  const [scanTriggerError, setScanTriggerError] = useState("");
   const navigate = useNavigate();
 
   const { data: user } = useQuery({
@@ -26,6 +28,30 @@ function Onboarding() {
     queryFn: api.auth.me,
     staleTime: 5 * 60 * 1000,
   });
+
+  const { data: scanStatus } = useQuery({
+    queryKey: ["gmail-scan-status"],
+    queryFn: api.gmail.scanStatus,
+    enabled: scanning,
+    refetchInterval: (query) => (query.state.data?.status === "running" ? 1500 : false),
+  });
+
+  useEffect(() => {
+    if (!scanning || !scanStatus) return;
+    if (scanStatus.status === "completed") {
+      navigate({ to: "/app/dashboard" });
+    }
+  }, [scanning, scanStatus, navigate]);
+
+  const startScan = async () => {
+    setScanTriggerError("");
+    try {
+      await api.gmail.scan(Number(depth));
+      setScanning(true);
+    } catch (err) {
+      setScanTriggerError(err instanceof Error ? err.message : "Something went wrong starting the scan.");
+    }
+  };
 
   const connected = justConnected || user?.gmailConnected === true;
 
@@ -116,17 +142,18 @@ function Onboarding() {
               {[
                 { v: "50", label: "Last 50 emails", hint: "Fastest. Good if you just started searching." },
                 { v: "100", label: "Last 100 emails", hint: "Recommended for most people." },
-                { v: "200", label: "Last 200 emails", hint: "Most thorough. May take ~2 minutes." },
+                { v: "150", label: "Last 150 emails", hint: "Most thorough. May take a couple minutes." },
               ].map((o) => (
                 <label
                   key={o.v}
-                  className={`flex cursor-pointer items-start gap-3 rounded-md border bg-surface p-4 ${depth === o.v ? "border-primary" : "border-border hover:border-border-strong"}`}
+                  className={`flex cursor-pointer items-start gap-3 rounded-md border bg-surface p-4 ${depth === o.v ? "border-primary" : "border-border hover:border-border-strong"} ${scanning ? "pointer-events-none opacity-50" : ""}`}
                 >
                   <input
                     type="radio"
                     name="d"
                     value={o.v}
                     checked={depth === o.v}
+                    disabled={scanning}
                     onChange={() => setDepth(o.v)}
                     className="mt-1 accent-[#8366F0]"
                   />
@@ -138,18 +165,59 @@ function Onboarding() {
               ))}
             </div>
 
+            {scanning && scanStatus && (
+              <div className="mt-6 rounded-md border border-border bg-surface p-4">
+                {scanStatus.status === "failed" ? (
+                  <>
+                    <div className="flex items-center gap-2 text-sm text-[#F76C6C]">
+                      <AlertCircle className="size-4 shrink-0" />
+                      {scanStatus.error ?? "The scan failed. Please try again."}
+                    </div>
+                    <button
+                      onClick={() => { setScanning(false); }}
+                      className="mt-3 text-sm text-text-secondary hover:text-foreground"
+                    >
+                      Try again
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="mb-2 flex items-center justify-between text-sm">
+                      <span>Scanning your inbox…</span>
+                      <Mono dim>{scanStatus.processed} / {scanStatus.total || "…"}</Mono>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-background">
+                      <div
+                        className="h-full bg-primary transition-all"
+                        style={{ width: scanStatus.total ? `${(scanStatus.processed / scanStatus.total) * 100}%` : "10%" }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {scanTriggerError && !scanning && (
+              <div className="mt-4 flex items-center gap-2 rounded-md border border-[rgba(247,108,108,0.3)] bg-[rgba(247,108,108,0.08)] px-3 py-2.5 text-sm text-[#F76C6C]">
+                <AlertCircle className="size-4 shrink-0" />
+                {scanTriggerError}
+              </div>
+            )}
+
             <div className="mt-6 flex items-center justify-between">
               <button
                 onClick={() => setStep(1)}
-                className="text-sm text-text-secondary hover:text-foreground"
+                disabled={scanning}
+                className="text-sm text-text-secondary hover:text-foreground disabled:opacity-40"
               >
                 Back
               </button>
               <button
-                onClick={() => navigate({ to: "/app/dashboard" })}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                onClick={startScan}
+                disabled={scanning && scanStatus?.status !== "failed"}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
               >
-                Start scanning
+                {scanning && scanStatus?.status !== "failed" ? "Scanning…" : "Start scanning"}
               </button>
             </div>
           </div>

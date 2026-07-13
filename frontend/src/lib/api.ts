@@ -28,6 +28,16 @@ export interface User {
   createdAt: string;
 }
 
+export interface GmailScanStatus {
+  status: "idle" | "running" | "completed" | "failed";
+  processed: number;
+  total: number;
+  created: number;
+  updated: number;
+  error: string | null;
+  lastScannedAt: string | null;
+}
+
 export const api = {
   auth: {
     register: (body: { email: string; password: string; name: string }) =>
@@ -49,6 +59,14 @@ export const api = {
     connectUrl: () => `${BASE}/api/gmail/connect`,
     disconnect: () =>
       request<{ ok: boolean }>("/api/gmail/disconnect", { method: "DELETE" }),
+
+    scan: (depth?: number) =>
+      request<{ status: string }>("/api/gmail/scan", {
+        method: "POST",
+        body: JSON.stringify(depth ? { depth: String(depth) } : {}),
+      }),
+
+    scanStatus: () => request<GmailScanStatus>("/api/gmail/scan/status"),
   },
 
   users: {
