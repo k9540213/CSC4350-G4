@@ -1,4 +1,10 @@
-import { z } from "zod";
+// zod/v4, not the top-level "zod" (v3) used elsewhere in this codebase:
+// @anthropic-ai/sdk's zodOutputFormat() calls the v4-only z.toJSONSchema()
+// internally and throws on a v3 schema object (verified directly — v3
+// throws "Cannot read properties of undefined (reading 'def')", v4 works).
+// This file's only job is being the LLM structured-output contract, so it's
+// scoped to v4 in isolation rather than migrating the whole app.
+import { z } from "zod/v4";
 
 const indexListOrAll = z.union([z.literal("all"), z.array(z.number().int().nonnegative())]);
 
