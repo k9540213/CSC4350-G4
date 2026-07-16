@@ -3,14 +3,13 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { requireAuth, AuthRequest } from "../middleware/requireAuth";
 import { profileSchema } from "../lib/resumeSchemas";
+import { generateSelectionDescriptor, LlmGenerationError } from "../lib/llm";
+import { resolveSelection, ResolveSelectionError } from "../lib/resolveSelection";
+import { escapeDeep } from "../lib/latexEscape";
+import { renderResumeTemplate } from "../lib/latexTemplate";
 
 export const resumeRouter = Router();
 resumeRouter.use(requireAuth);
-
-const DEFAULT_LATEX = `\\documentclass{article}
-\\begin{document}
-Hello World.
-\\end{document}`;
 
 const createSchema = z.object({
   label: z.string().min(1),
@@ -25,9 +24,10 @@ const updateSchema = z.object({
 });
 
 const generateSchema = z.object({
-  prompt: z.string().min(1),
+  jobDescription: z.string().min(1),
   targetRole: z.string().optional(),
-  baseVersionId: z.string().optional(),
+  contactVariantHint: z.string().optional(),
+  label: z.string().optional(),
 });
 
 const EMPTY_PROFILE = {
@@ -128,9 +128,6 @@ resumeRouter.delete("/:id", async (req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
-// Stub generation: no LLM wired up yet. Clones the base version (or falls
-// back to a default template) and marks it with the tailoring prompt so the
-// UI has something real to persist/render while generation is built out.
 resumeRouter.post("/generate", async (req: Request, res: Response) => {
   const { userId } = req as AuthRequest;
   const parsed = generateSchema.safeParse(req.body);
@@ -138,31 +135,54 @@ resumeRouter.post("/generate", async (req: Request, res: Response) => {
     res.status(400).json({ error: parsed.error.issues[0].message });
     return;
   }
-  const { prompt, targetRole, baseVersionId } = parsed.data;
+  const { jobDescription, targetRole, contactVariantHint, label } = parsed.data;
 
-  let baseLatex = DEFAULT_LATEX;
-  if (baseVersionId) {
-    const base = await getVersionForUser(baseVersionId, userId, res);
-    if (!base) return;
-    baseLatex = base.latexSource;
+  const profileRow = await prisma.resumeProfile.findUnique({ where: { userId } });
+  const profile = profileSchema.parse(profileRow ?? {});
+  const isEmpty = Object.values(profile).every((section) => Array.isArray(section) && section.length === 0);
+  if (isEmpty) {
+    res.status(422).json({ error: "Complete your resume profile before generating a tailored resume." });
+    return;
   }
 
-  const stubbedLatex = baseLatex.replace(
-    "\\begin{document}",
-    `\\begin{document}\n% STUB DRAFT — tailoring not yet implemented.\n% Requested: ${prompt.replace(/[\r\n%]/g, " ")}`,
-  );
+  let descriptor;
+  try {
+    descriptor = await generateSelectionDescriptor({ profile, jobDescription, contactVariantHint, targetRole });
+  } catch (err) {
+    if (err instanceof LlmGenerationError) {
+      res.status(502).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
+
+  let job, warnings;
+  try {
+    ({ job, warnings } = resolveSelection(profile, descriptor));
+  } catch (err) {
+    if (err instanceof ResolveSelectionError) {
+      res.status(422).json({ error: err.message });
+      return;
+    }
+    throw err;
+  }
+
+  const escapedJob = escapeDeep(job);
+  const latexSource = renderResumeTemplate(escapedJob);
 
   const count = await prisma.resumeVersion.count({ where: { userId } });
   const version = await prisma.resumeVersion.create({
     data: {
       userId,
-      label: `v${count + 1} — ${targetRole ?? "Untitled"}`,
-      latexSource: stubbedLatex,
+      label: label ?? `v${count + 1} — ${targetRole ?? "Tailored"}`,
+      latexSource,
       targetRole,
+      jobDescription,
+      selectionDescriptor: descriptor,
     },
   });
 
-  res.status(201).json(version);
+  res.status(201).json({ ...version, warnings });
 });
 
 const renderSchema = z.object({
