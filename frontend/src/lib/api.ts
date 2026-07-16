@@ -28,6 +28,88 @@ export interface User {
   createdAt: string;
 }
 
+export interface ResumeVersion {
+  id: string;
+  userId: string;
+  label: string;
+  latexSource: string;
+  targetRole: string | null;
+  jobDescription: string | null;
+  selectionDescriptor: unknown;
+  createdAt: string;
+}
+
+export interface ContactVariant {
+  key: string;
+  name: string;
+  email: string;
+  phone: string;
+  link: string | null;
+  linkDisplay: string;
+  location: string;
+  title: string;
+}
+
+export interface SummaryVariant {
+  key: string;
+  label: string;
+  text: string;
+}
+
+export interface SkillCategory {
+  category: string;
+  items: string[];
+}
+
+export interface ExperienceEntry {
+  org: string;
+  location: string;
+  role: string;
+  date: string;
+  bullets: string[];
+}
+
+export interface ResearchEntry {
+  org: string;
+  location: string;
+  role: string;
+  title: string;
+  description: string;
+}
+
+export interface ProjectEntry {
+  name: string;
+  description: string;
+}
+
+export interface InvolvementEntry {
+  name: string;
+  description: string;
+}
+
+export interface EducationEntry {
+  school: string;
+  location: string;
+  degree: string;
+  date: string;
+  gpa: string;
+  honors: string;
+  coursework: string;
+}
+
+export interface ResumeProfile {
+  id: string | null;
+  contact: ContactVariant[];
+  summary: SummaryVariant[];
+  skills: SkillCategory[];
+  experience: ExperienceEntry[];
+  research: ResearchEntry[];
+  projects: ProjectEntry[];
+  involvement: InvolvementEntry[];
+  education: EducationEntry[];
+  updatedAt: string | null;
+}
+
 export const api = {
   auth: {
     register: (body: { email: string; password: string; name: string }) =>
@@ -93,5 +175,43 @@ export const api = {
       request<{ ok: boolean }>(`/api/applications/${id}`, {
         method: "DELETE",
       }),
+  },
+
+  resume: {
+    list: () => request<ResumeVersion[]>("/api/resume"),
+
+    create: (body: { label: string; latexSource: string; targetRole?: string }) =>
+      request<ResumeVersion>("/api/resume", { method: "POST", body: JSON.stringify(body) }),
+
+    update: (id: string, body: Partial<{ label: string; latexSource: string; targetRole: string }>) =>
+      request<ResumeVersion>(`/api/resume/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+
+    remove: (id: string) =>
+      request<{ ok: boolean }>(`/api/resume/${id}`, { method: "DELETE" }),
+
+    generate: (body: { jobDescription: string; targetRole?: string; contactVariantHint?: string; label?: string }) =>
+      request<ResumeVersion & { warnings: string[] }>("/api/resume/generate", { method: "POST", body: JSON.stringify(body) }),
+
+    renderPdf: async (latex: string): Promise<Blob> => {
+      const cookie = getIncomingCookieHeader();
+      const res = await fetch(`${BASE}/api/resume/render-pdf`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", ...(cookie ? { cookie } : {}) },
+        body: JSON.stringify({ latex }),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(`Render failed (${res.status}): ${text || res.statusText}`);
+      }
+      return res.blob();
+    },
+  },
+
+  resumeProfile: {
+    get: () => request<ResumeProfile>("/api/resume/profile"),
+
+    update: (body: Omit<ResumeProfile, "id" | "updatedAt">) =>
+      request<ResumeProfile>("/api/resume/profile", { method: "PUT", body: JSON.stringify(body) }),
   },
 };
