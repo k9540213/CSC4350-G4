@@ -239,15 +239,3 @@ export const ANALYTICS = {
   ],
 };
 
-export const RESUME_VERSIONS = [
-  { id: "v4", label: "v4 — Stripe tailored", createdAt: days(1), active: true },
-  { id: "v3", label: "v3 — Frontend focused", createdAt: days(4), active: false },
-  { id: "v2", label: "v2 — General SWE", createdAt: days(9), active: false },
-  { id: "v1", label: "v1 — Original import", createdAt: days(14), active: false },
-];
-
-export const CHAT_HISTORY = [
-  { role: "assistant" as const, content: "Hi — I'm your resume copilot. Tell me about the role you're targeting and I'll tailor your resume." },
-  { role: "user" as const, content: "I'm applying to Stripe for a payments engineering role. I have 3 years of backend experience with Go and Postgres." },
-  { role: "assistant" as const, content: "Great. I'd suggest leading with your payments-adjacent work and quantifying transaction throughput where possible. Want me to rewrite your top bullet?" },
-];

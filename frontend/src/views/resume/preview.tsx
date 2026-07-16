@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Download, Send, ChevronDown, UserCog, Code2, Save } from "lucide-react";
-import { Application, CHAT_HISTORY } from "@/lib/mock-data";
+import { Application } from "@/lib/mock-data";
 import { api, ResumeVersion } from "@/lib/api";
 import { Mono } from "@/components/mono";
 
+type ChatMessage = { role: "user" | "assistant"; content: string; pending?: boolean };
+
+const WELCOME_MESSAGE: ChatMessage = {
+  role: "assistant",
+  content:
+    "Paste a job description below and I'll draft a resume tailored to it — pulling only from what's in your Resume Profile (use \"Edit profile\" above if you haven't filled it out yet). Nothing gets invented; I only select and reorder your real experience, skills, and projects to match the role.",
+};
+
 export function Resume() {
-  const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>(CHAT_HISTORY);
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
   const [tailorOpen, setTailorOpen] = useState(false);
   const [tailorTo, setTailorTo] = useState<string | null>(null);
@@ -95,14 +103,30 @@ export function Resume() {
     };
   }, [activeVersionData]);
 
+  const replaceLastMessage = (content: string) => {
+    setMessages((prev) => {
+      const copy = [...prev];
+      copy[copy.length - 1] = { role: "assistant", content };
+      return copy;
+    });
+  };
+
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isGenerating) return;
 
     const jobDescription = input;
-    setMessages((prev) => [...prev, { role: "user", content: jobDescription }]);
     setInput("");
     setIsGenerating(true);
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: jobDescription },
+      {
+        role: "assistant",
+        content: "Reading your profile and this job description, then selecting the experience, skills, and projects that match — this takes a few seconds…",
+        pending: true,
+      },
+    ]);
 
     try {
       const { warnings, ...version } = await api.resume.generate({
@@ -111,19 +135,15 @@ export function Resume() {
       });
       setVersions((prev) => [...prev, version]);
       setActiveVersion(version.id);
-      const warningNote = warnings.length > 0 ? ` (${warnings.length} selection${warnings.length > 1 ? "s" : ""} needed adjusting: ${warnings.join("; ")})` : "";
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: `Drafted ${version.label}.${warningNote}` },
-      ]);
+      const warningNote =
+        warnings.length > 0
+          ? ` Heads up — ${warnings.length} selection${warnings.length > 1 ? "s" : ""} needed adjusting: ${warnings.join("; ")}.`
+          : "";
+      replaceLastMessage(
+        `Done — drafted ${version.label}. Check the preview on the right; download it once it looks good, or click "Edit LaTeX" to fine-tune anything by hand.${warningNote}`,
+      );
     } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `Couldn't draft a new version: ${err instanceof Error ? err.message : "unknown error"}`,
-        },
-      ]);
+      replaceLastMessage(`Couldn't draft a new version: ${err instanceof Error ? err.message : "unknown error"}`);
     } finally {
       setIsGenerating(false);
     }
@@ -222,7 +242,7 @@ export function Resume() {
                 ) : (
                   <div>
                     <Mono dim>Copilot</Mono>
-                    <div className="mt-1 text-sm leading-relaxed text-text-primary">
+                    <div className={`mt-1 text-sm leading-relaxed ${m.pending ? "animate-pulse text-text-tertiary" : "text-text-primary"}`}>
                       {m.content}
                     </div>
                   </div>
