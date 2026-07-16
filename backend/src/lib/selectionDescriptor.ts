@@ -18,12 +18,16 @@ export const experienceSelectionSchema = z.object({
   bulletIndices: indexListOrAll,
 });
 
-// Every field except contactKey (a lookup key) and summary (free text) is an
-// index, an array of indices, or "all" — the LLM has no channel to inject
-// literal factual content through this schema.
+// Every field except contactKey (a lookup key), summary, and jobTitle (free
+// text) is an index, an array of indices, or "all" — the LLM has no channel
+// to inject literal factual content through this schema. jobTitle describes
+// the target JOB (extracted from the job description the user provided),
+// not the user's own resume content, so it carries no hallucination risk —
+// it's used only to label the generated resume version consistently.
 export const selectionDescriptorSchema = z.object({
   contactKey: z.string().min(1),
   summary: z.string().min(1),
+  jobTitle: z.string().min(1),
   skillSelections: z.array(skillSelectionSchema).default([]),
   experienceSelections: z.array(experienceSelectionSchema).default([]),
   researchIndices: indexListOrAll.default([]),

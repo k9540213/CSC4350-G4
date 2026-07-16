@@ -22,7 +22,8 @@ Selection rules:
 - involvement: include only if relevant.
 - education: usually include all of it ("all"), unless clearly irrelevant.
 - contactKey: pick whichever contact variant's title/framing best matches the job.
-- summary: write a fresh 1-3 sentence summary tailored to the job description. This is the only field where you may write new text.`;
+- summary: write a fresh 1-3 sentence summary tailored to the job description. This is the only field where you may write new text about the candidate.
+- jobTitle: a short 2-5 word label for the role being applied to (e.g. "Security Engineer" or "Backend Engineer, Stripe"), extracted or inferred from the job description. This is metadata describing the JOB, not the candidate, and is used only to name this resume version — keep it short and consistent, no punctuation beyond a comma.`;
 
 function buildUserPrompt(input: {
   profile: ResumeProfileData;

@@ -174,7 +174,7 @@ resumeRouter.post("/generate", async (req: Request, res: Response) => {
   const version = await prisma.resumeVersion.create({
     data: {
       userId,
-      label: label ?? `v${count + 1} — ${targetRole ?? "Tailored"}`,
+      label: label ?? `v${count + 1} — ${descriptor.jobTitle}`,
       latexSource,
       targetRole,
       jobDescription,

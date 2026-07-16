@@ -230,19 +230,19 @@ export function Resume() {
         </div>
       </header>
 
-      <div className="grid flex-1 grid-cols-[380px_1fr] overflow-hidden">
-        <div className="flex flex-col border-r border-border">
-          <div className="flex-1 space-y-4 overflow-auto p-4">
+      <div className="grid min-h-0 flex-1 grid-cols-[380px_1fr] overflow-hidden">
+        <div className="flex min-h-0 flex-col border-r border-border">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
             {messages.map((m, i) => (
               <div key={i} className={m.role === "user" ? "flex justify-end" : ""}>
                 {m.role === "user" ? (
-                  <div className="max-w-[85%] rounded-md bg-primary/15 px-3 py-2 text-sm">
+                  <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-md bg-primary/15 px-3 py-2 text-sm">
                     {m.content}
                   </div>
                 ) : (
                   <div>
                     <Mono dim>Copilot</Mono>
-                    <div className={`mt-1 text-sm leading-relaxed ${m.pending ? "animate-pulse text-text-tertiary" : "text-text-primary"}`}>
+                    <div className={`mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed ${m.pending ? "animate-pulse text-text-tertiary" : "text-text-primary"}`}>
                       {m.content}
                     </div>
                   </div>
@@ -271,7 +271,7 @@ export function Resume() {
           </form>
         </div>
 
-        <div className="flex flex-col overflow-hidden">
+        <div className="flex min-h-0 flex-col overflow-hidden">
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <div className="flex items-center gap-2 overflow-auto">
               {versions.map((v, i) => (
@@ -303,9 +303,9 @@ export function Resume() {
             </div>
           </div>
 
-          <div className={`flex-1 overflow-hidden ${editorOpen ? "grid grid-cols-2" : "flex"}`}>
+          <div className={`min-h-0 flex-1 overflow-hidden ${editorOpen ? "grid grid-cols-2" : "flex"}`}>
             {editorOpen && (
-              <div className="flex flex-col border-r border-border">
+              <div className="flex min-h-0 flex-col border-r border-border">
                 <textarea
                   value={editedLatex}
                   onChange={(e) => setEditedLatex(e.target.value)}
@@ -331,7 +331,7 @@ export function Resume() {
               </div>
             )}
 
-            <div className="flex-1 overflow-auto bg-background/40 p-8">
+            <div className="min-h-0 flex-1 overflow-auto bg-background/40 p-8">
               {versionsLoading && (
                 <div className="flex h-full items-center justify-center text-sm text-text-tertiary">
                   Loading resume versions…
