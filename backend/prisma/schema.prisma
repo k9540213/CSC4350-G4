@@ -22,6 +22,7 @@ model User {
 
   applications         Application[]
   resumeVersions       ResumeVersion[]
+  resumeProfile        ResumeProfile?
 }
 
 model Application {
@@ -62,16 +63,35 @@ model StatusEvent {
 }
 
 model ResumeVersion {
-  id          String   @id @default(cuid())
-  userId      String
-  latexSource String
-  label       String
-  targetRole  String?
-  createdAt   DateTime @default(now())
+  id                  String   @id @default(cuid())
+  userId              String
+  latexSource         String
+  label               String
+  targetRole          String?
+  jobDescription      String?
+  selectionDescriptor Json?
+  createdAt           DateTime @default(now())
 
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model ResumeProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  contact     Json     @default("[]")
+  summary     Json     @default("[]")
+  skills      Json     @default("[]")
+  experience  Json     @default("[]")
+  research    Json     @default("[]")
+  projects    Json     @default("[]")
+  involvement Json     @default("[]")
+  education   Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum Stage {

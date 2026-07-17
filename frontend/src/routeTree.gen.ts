@@ -18,6 +18,7 @@ import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AppResumeRouteImport } from './routes/app.resume'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppAnalyticsRouteImport } from './routes/app.analytics'
+import { Route as AppResumeProfileRouteImport } from './routes/app.resume_.profile'
 
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
@@ -64,6 +65,11 @@ const AppAnalyticsRoute = AppAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AppRoute,
 } as any)
+const AppResumeProfileRoute = AppResumeProfileRouteImport.update({
+  id: '/resume_/profile',
+  path: '/resume/profile',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/app/resume': typeof AppResumeRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/': typeof AppIndexRoute
+  '/app/resume/profile': typeof AppResumeProfileRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -85,6 +92,7 @@ export interface FileRoutesByTo {
   '/app/resume': typeof AppResumeRoute
   '/app/settings': typeof AppSettingsRoute
   '/app': typeof AppIndexRoute
+  '/app/resume/profile': typeof AppResumeProfileRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/app/resume': typeof AppResumeRoute
   '/app/settings': typeof AppSettingsRoute
   '/app/': typeof AppIndexRoute
+  '/app/resume_/profile': typeof AppResumeProfileRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
     | '/app/resume'
     | '/app/settings'
     | '/app/'
+    | '/app/resume/profile'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/app/resume'
     | '/app/settings'
     | '/app'
+    | '/app/resume/profile'
   id:
     | '__root__'
     | '/'
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/app/resume'
     | '/app/settings'
     | '/app/'
+    | '/app/resume_/profile'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -205,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAnalyticsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/resume_/profile': {
+      id: '/app/resume_/profile'
+      path: '/resume/profile'
+      fullPath: '/app/resume/profile'
+      preLoaderRoute: typeof AppResumeProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -214,6 +233,7 @@ interface AppRouteChildren {
   AppResumeRoute: typeof AppResumeRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppResumeProfileRoute: typeof AppResumeProfileRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -222,6 +242,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppResumeRoute: AppResumeRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
+  AppResumeProfileRoute: AppResumeProfileRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
